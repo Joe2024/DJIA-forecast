@@ -1,4 +1,8 @@
 
+!pip install mplfinance
+!pip install --upgrade mplfinance
+!pip install yfinance
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -10,37 +14,42 @@ import tensorflow as tf
 from keras import Model
 from keras.layers import Input, Dense, Dropout
 from keras.layers import LSTM
+from mplfinance.plotting import mdates
+import datetime as dt
+import matplotlib.pyplot as plt
+from matplotlib import style
+import matplotlib.dates as mdates
+import pandas as pd
+import mplfinance as mpf
+from pandas_datareader import data
+import pandas_datareader.data as web
 
-df = pd.read_csv("DJIA.csv")
-df.head()
-df.drop(['Vol.', 'Change %'], axis=1, inplace=True)
-df['Date'] = pd.to_datetime(df['Date'])
-df.sort_values(by='Date', ascending=True, inplace=True)
-df.reset_index(drop=True, inplace=True)
+df = yf.download('QQQ', start='2013-01-01', end='2023-09-21', interval='1d')
+Day = np.arange(1, len(df) + 1)
+df['Day'] = Day
+df
 
-NumCols = df.columns.drop(['Date'])
-df[NumCols] = df[NumCols].replace({',': ''}, regex=True)
-df[NumCols] = df[NumCols].astype('float64')
-df.duplicated().sum()
-df.isnull().sum().sum()
+df.drop(['Volume', 'Adj Close'], axis=1, inplace=True)
+df['Day'] = df['Day'].astype('float64')
 
-fig = px.line(y=df.Price, x=df.Date)
+
+fig = px.line(y=df.Close, x=df.Day)
 fig.update_traces(line_color='black')
 fig.update_layout(xaxis_title="Date",
                   yaxis_title="Scaled Price",
                   title={'text': "Gold Price History Data", 'y':0.95, 'x':0.5, 'xanchor':'center', 'yanchor':'top'},
                   plot_bgcolor='rgba(255,223,0,0.8)')
 
-test_size = df[df.Date.dt.year==2022].shape[0]
+test_size = df[df.Day>=2500].shape[0]
 test_size
 
 plt.figure(figsize=(15, 6), dpi=150)
 plt.rcParams['axes.facecolor'] = 'yellow'
 plt.rc('axes',edgecolor='white')
-plt.plot(df.Date[:-test_size], df.Price[:-test_size], color='black', lw=2)
-plt.plot(df.Date[-test_size:], df.Price[-test_size:], color='blue', lw=2)
+plt.plot(df.Day[:-test_size], df.Close[:-test_size], color='black', lw=2)
+plt.plot(df.Day[-test_size:], df.Close[-test_size:], color='blue', lw=2)
 plt.title('Gold Price Training and Test Sets', fontsize=15)
-plt.xlabel('Date', fontsize=12)
+plt.xlabel('Day', fontsize=12)
 plt.ylabel('Price', fontsize=12)
 plt.legend(['Training set', 'Test set'], loc='upper left', prop={'size': 15})
 plt.grid(color='white')
@@ -50,7 +59,7 @@ scaler = MinMaxScaler()
 scaler.fit(df.Price.values.reshape(-1,1))
 MinMaxScaler()
 window_size = 60
-train_data = df.Price[:-test_size]
+train_data = df.Close[:-test_size]
 train_data = scaler.transform(train_data.values.reshape(-1,1))
 
 X_train = []
@@ -60,7 +69,7 @@ for i in range(window_size, len(train_data)):
     X_train.append(train_data[i-60:i, 0])
     y_train.append(train_data[i, 0])
 
-test_data = df.Price[-test_size-60:]
+test_data = df.Close[-test_size-60:]
 test_data = scaler.transform(test_data.values.reshape(-1,1))
 
 X_test = []
@@ -119,11 +128,11 @@ y_test_pred = scaler.inverse_transform(y_pred)
 plt.figure(figsize=(15, 6), dpi=150)
 plt.rcParams['axes.facecolor'] = 'yellow'
 plt.rc('axes',edgecolor='white')
-plt.plot(df['Date'].iloc[:-test_size], scaler.inverse_transform(train_data), color='black', lw=2)
-plt.plot(df['Date'].iloc[-test_size:], y_test_true, color='blue', lw=2)
-plt.plot(df['Date'].iloc[-test_size:], y_test_pred, color='red', lw=2)
+plt.plot(df['Day'].iloc[:-test_size], scaler.inverse_transform(train_data), color='black', lw=2)
+plt.plot(df['Day'].iloc[-test_size:], y_test_true, color='blue', lw=2)
+plt.plot(df['Day'].iloc[-test_size:], y_test_pred, color='red', lw=2)
 plt.title('Model Performance on Gold Price Prediction', fontsize=15)
-plt.xlabel('Date', fontsize=12)
+plt.xlabel('Day', fontsize=12)
 plt.ylabel('Price', fontsize=12)
 plt.legend(['Training Data', 'Actual Test Data', 'Predicted Test Data'], loc='upper left', prop={'size': 15})
 plt.grid(color='white')
